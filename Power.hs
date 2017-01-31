@@ -1,46 +1,38 @@
 module Power (
-goToState, can) where
+goToState, can, Capability) where
 
 import DBus
 import DBus.Client
 
-
-data Capabilities = Suspend | Hibernate | Hybrid
+-- | Capability enumerate the possibles Capapilities of computer states
+-- 
+--       [@Suspend@] suspend computer to RAM
+--
+--       [@Hibernate@] suspend computer to hard drive
+--
+--       [@Hybrid@] suspend computer also to RAM and to hard drive (Not Yet implemented)
+data Capability = Suspend
+                | Hibernate
+                | Hybrid
 
 -- DBUS methods :
--- org.freedesktop.PowerManagement
--- /org/freedesktop/PowerManagement
 -- method bool org.freedesktop.PowerManagement.CanHibernate()
--- signal void org.freedesktop.PowerManagement.CanHibernateChanged(bool can_hibernate)
 -- method bool org.freedesktop.PowerManagement.CanHybridSuspend()
--- signal void org.freedesktop.PowerManagement.CanHybridSuspendChanged(bool can_hybrid_suspend)
 -- method bool org.freedesktop.PowerManagement.CanSuspend()
--- signal void org.freedesktop.PowerManagement.CanSuspendChanged(bool can_suspend)
--- method bool org.freedesktop.PowerManagement.GetPowerSaveStatus()
 -- method void org.freedesktop.PowerManagement.Hibernate()
--- signal void org.freedesktop.PowerManagement.PowerSaveStatusChanged(bool save_power)
 -- method void org.freedesktop.PowerManagement.Suspend()
--- method bool org.freedesktop.PowerManagement.Inhibit.HasInhibit()
--- signal void org.freedesktop.PowerManagement.Inhibit.HasInhibitChanged(bool has_inhibit)
--- method uint org.freedesktop.PowerManagement.Inhibit.Inhibit(QString application, QString reason)
--- method void org.freedesktop.PowerManagement.Inhibit.UnInhibit(uint cookie)
--- method QDBusVariant org.freedesktop.DBus.Properties.Get(QString interface_name, QString property_name)
--- method QVariantMap org.freedesktop.DBus.Properties.GetAll(QString interface_name)
--- method void org.freedesktop.DBus.Properties.Set(QString interface_name, QString property_name, QDBusVariant value)
--- method QString org.freedesktop.DBus.Introspectable.Introspect()
--- method QString org.freedesktop.DBus.Peer.GetMachineId()
--- method void org.freedesktop.DBus.Peer.Ping()
 
--- For my first usage, I just need Suspend and I know I have.
--- To be updated later.
 
-can :: Capabilities -> IO Bool
+-- | can function test if the capability is available on this computer.
+-- take a Capability to check. return True if Capability is available on the computer, and False if it is not.s
+can :: Capability -> IO Bool
 can Suspend = dbusCallWithRetBool memberNameCanSuspend
-can Hybrid  = dbusCallWithRetBool memberNameCanHybrid
+can Hybrid  = return False -- dbusCallWithRetBool memberNameCanHybrid
 can Hibernate = dbusCallWithRetBool memberNameCanHibernate
 
-
-goToState :: Capabilities -> IO()
+-- | goToState function change the state of the computer to the state required by the capability
+-- passed as parameter. If capability is not available, do nothing.
+goToState :: Capability -> IO()
 goToState Suspend = do
   s <- can Suspend
   if s then dbusCall memberNameSuspend else return ()
