@@ -1,3 +1,10 @@
+-- | The Power Module is a module to change computer state to some suspend types.
+-- You can hibernate, suspend or hybrid suspend.
+--
+-- The module use DBUS to perform actions, so you need au operating system with DBUS.
+--
+-- The interface of the module is very easy: one function to kwonw if a suspend system is available and an other to change the state.
+--
 module Power (
 goToState, can, Capability) where
 
@@ -5,7 +12,7 @@ import DBus
 import DBus.Client
 
 -- | Capability enumerate the possibles Capapilities of computer states
--- 
+--
 --       [@Suspend@] suspend computer to RAM
 --
 --       [@Hibernate@] suspend computer to hard drive
