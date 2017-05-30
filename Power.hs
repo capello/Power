@@ -8,8 +8,8 @@
 module Power (
 goToState, can, Capability) where
 
-import DBus
-import DBus.Client
+import System.Posix.Files as F
+import Control.Applicative
 
 -- | Capability enumerate the possibles Capapilities of computer states
 --
@@ -22,63 +22,23 @@ data Capability = Suspend
                 | Hibernate
                 | Hybrid
 
--- DBUS methods :
--- method bool org.freedesktop.PowerManagement.CanHibernate()
--- method bool org.freedesktop.PowerManagement.CanHybridSuspend()
--- method bool org.freedesktop.PowerManagement.CanSuspend()
--- method void org.freedesktop.PowerManagement.Hibernate()
--- method void org.freedesktop.PowerManagement.Suspend()
-
+stateFile = "/sys/power/state"
 
 -- | can function test if the capability is available on this computer.
 -- take a Capability to check. return True if Capability is available on the computer, and False if it is not.s
 can :: Capability -> IO Bool
-can Suspend = dbusCallWithRetBool memberNameCanSuspend
+can Suspend = (&&) <$> (F.fileExist stateFile) <*> (fmap (any (=="mem")) readStateFile)
 can Hybrid  = return False -- dbusCallWithRetBool memberNameCanHybrid
-can Hibernate = dbusCallWithRetBool memberNameCanHibernate
+can Hibernate = (&&) <$> (F.fileExist stateFile) <*> (fmap (any (=="disk")) readStateFile)
 
 -- | goToState function change the state of the computer to the state required by the capability
 -- passed as parameter. If capability is not available, do nothing.
 goToState :: Capability -> IO()
-goToState Suspend = do
-  s <- can Suspend
-  if s then dbusCall memberNameSuspend else return ()
-goToState Hybrid  = do
-  h <- can Hybrid
-  if h then dbusCall memberNameHybrid else return ()
-goToState Hibernate = do
-  h <- can Hibernate
-  if h then dbusCall memberNameHibernate else return ()
+goToState Suspend = writeFile stateFile "mem"
+goToState Hybrid  = writeFile stateFile "mem disk"
+goToState Hibernate = writeFile stateFile "disk"
 
--- Call DBUS
-dbusCallWithRetBool :: MemberName -> IO Bool
-dbusCallWithRetBool m = do
-  client <- connectSession
-  reply <- call_ client (methodCall
-                         objectPathPower
-                         interfaceNamePower
-                         m )
-           { methodCallDestination= Just busNamePower }
-  let Just isPossible = fromVariant (methodReturnBody reply !! 0)
-  return (isPossible)
-
-dbusCall :: MemberName -> IO ()
-dbusCall m = do
-  client <- connectSession
-  callNoReply client (methodCall objectPathPower
-                     interfaceNamePower
-                     m)
-    { methodCallDestination = Just busNamePower }
-  return ()
-
--- Data constants (object path, interface name and all members)
-objectPathPower = objectPath_ "/org/freedesktop/PowerManagement"
-interfaceNamePower = interfaceName_ "org.freedesktop.PowerManagement"
-busNamePower = busName_ "org.freedesktop.PowerManagement"
-memberNameSuspend = memberName_ "Suspend"
-memberNameCanSuspend = memberName_ "CanSuspend"
-memberNameHibernate = memberName_ "Hibernate"
-memberNameCanHibernate = memberName_ "CanHibernate"
-memberNameHybrid = memberName_ "HybridSuspend"
-memberNameCanHybrid = memberName_ "CanHybridSuspend"
+-- Read/Write stateFile
+readStateFile :: IO [String]
+readStateFile = fmap words $ readFile stateFile
 
